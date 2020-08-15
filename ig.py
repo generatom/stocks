@@ -30,6 +30,8 @@ class APIHandler():
         response = requests.post(url, headers=headers,
                                  data=json.dumps(data))
         while response.status_code != 200:
+            if self.debug_level:
+                print(response.status_code, response.reason)
             response = requests.post(url, headers=headers,
                                      data=json.dumps(data))
         self._login_data = response.json()
@@ -121,17 +123,19 @@ class APIHandler():
                 df_pos = df_pos.append(df)
                 df = None
 
-        df_pos.contractSize = np.where(df_pos.direction == 'BUY',
-                                       df_pos.contractSize,
-                                       df_pos.contractSize * -1)
-        df_pos['close_level'] = np.where(df_pos.direction == 'BUY', df_pos.bid,
-                                         df_pos.offer)
-        df_pos['profit'] = ((df_pos.close_level - df_pos.level) *
-                            df_pos.contractSize)
-        df_pos['stop_distance'] = ((df_pos.stopLevel - df_pos.close_level) *
-                                   np.sign(df_pos.contractSize))
-        df_pos['limit_distance'] = ((df_pos.limitLevel - df_pos.close_level) *
-                                    np.sign(df_pos.contractSize))
+        if not df_pos.empty:
+            df_pos.contractSize = np.where(df_pos.direction == 'BUY',
+                                           df_pos.contractSize,
+                                           df_pos.contractSize * -1)
+            df_pos['close_level'] = np.where(df_pos.direction == 'BUY',
+                                             df_pos.bid, df_pos.offer)
+            df_pos['profit'] = ((df_pos.close_level - df_pos.level) *
+                                df_pos.contractSize)
+            df_pos['stop_distance'] = ((df_pos.stopLevel - df_pos.close_level)
+                                       * np.sign(df_pos.contractSize))
+            df_pos['limit_distance'] = ((df_pos.limitLevel -
+                                         df_pos.close_level) *
+                                        np.sign(df_pos.contractSize))
 
         return df_pos
 
@@ -210,6 +214,7 @@ def get_args():
                         default=False)
     parser.add_argument('--demo', dest='account', action='store_const',
                         const='demo', help='Use demo account', default='prod')
+    parser.add_argument('-v', action='count', dest='verbosity', default=0)
 
     return parser.parse_args()
 
@@ -222,24 +227,23 @@ if __name__ == '__main__':
 
     def get_api(api_type='demo'):
         base_dir = '/home/jono/projects/stocks'
-        apis = {'demo': {
-                    'api_key': get_pass(op.join(base_dir, 'demo_api_key')),
-                    'user_name': 'jmnichdemo',
-                    'passw': get_pass(op.join(base_dir, 'demo_api_pass')),
-                    'url': 'https://demo-api.ig.com/gateway/deal'},
-                'prod': {
-                    'api_key': get_pass(op.join(base_dir, 'api_key')),
-                    'user_name': 'jmnich',
-                    'passw': get_pass(op.join(base_dir, 'api_pass')),
-                    'url': 'https://api.ig.com/gateway/deal'}
-                }
-        return apis[api_type]
+        api = {'api_key': get_pass(op.join(base_dir, api_type + '_api_key')),
+               'user_name': get_pass(op.join(base_dir, api_type + '_api_usr')),
+               'passw': get_pass(op.join(base_dir, api_type + '_api_pass'))
+               }
+
+        if api_type == 'demo':
+            api['url'] = 'https://demo-api.ig.com/gateway/deal'
+        else:
+            api['url'] = 'https://api.ig.com/gateway/deal'
+        return api
 
     args = get_args()
     api_deets = get_api(args.account)
 
     api = APIHandler(api_deets['url'], api_deets['api_key'],
-                     api_deets['user_name'], api_deets['passw'])
+                     api_deets['user_name'], api_deets['passw'],
+                     verbosity=args.verbosity)
     # api.print_market_nodes(api.market_details(361365))
     # pprint(api.market_details('IX.D.SUNFUN.DAILY.IP'))
     if args.positions:
