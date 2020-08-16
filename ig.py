@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import requests
 import json
-from pprint import pprint
 import datetime as dt
 import numpy as np
 import pandas as pd
@@ -248,24 +247,28 @@ def get_args():
     return parser.parse_args()
 
 
-if __name__ == '__main__':
+def get_pass(file):
+    with open(file, 'r') as f:
+        return f.read().strip()
 
-    def get_pass(file):
-        with open(file, 'r') as f:
-            return f.read().strip()
 
-    def get_api(api_type='demo'):
+def get_api(api_type='demo', base_dir=None):
+    if not base_dir:
         base_dir = '/home/jono/projects/stocks'
-        api = {'api_key': get_pass(op.join(base_dir, api_type + '_api_key')),
-               'user_name': get_pass(op.join(base_dir, api_type + '_api_usr')),
-               'passw': get_pass(op.join(base_dir, api_type + '_api_pass'))
-               }
 
-        if api_type == 'demo':
-            api['url'] = 'https://demo-api.ig.com/gateway/deal'
-        else:
-            api['url'] = 'https://api.ig.com/gateway/deal'
-        return api
+    api = {'api_key': get_pass(op.join(base_dir, api_type + '_api_key')),
+           'user_name': get_pass(op.join(base_dir, api_type + '_api_usr')),
+           'passw': get_pass(op.join(base_dir, api_type + '_api_pass'))
+           }
+
+    if api_type == 'demo':
+        api['url'] = 'https://demo-api.ig.com/gateway/deal'
+    else:
+        api['url'] = 'https://api.ig.com/gateway/deal'
+    return api
+
+
+if __name__ == '__main__':
 
     args = get_args()
     api_deets = get_api(args.account)
