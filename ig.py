@@ -2,7 +2,7 @@
 import requests
 import json
 from pprint import pprint
-import datetime
+import datetime as dt
 import numpy as np
 import pandas as pd
 import os.path as op
@@ -18,6 +18,9 @@ class APIHandler():
         self._login_response = self.login(password)
         del password
         self._headers = self._set_headers()
+        self.date_format = '%Y-%m-%d'
+        self.time_format = '%H:%M:%S'
+        self.dt_format = self.date_format + 'T' + self.time_format
 
     def login(self, password):
         data = {
@@ -103,6 +106,32 @@ class APIHandler():
     def transactions(self):
         pass
 
+    def prices(self, epic, resolution='HOUR', from_date=None, to_date=None):
+        valid_resolutions = ['SECOND', 'MINUTE', 'MINUTE_2', 'MINUTE_3',
+                             'MINUTE_5', 'MINUTE_10', 'MINUTE_15',
+                             'MINUTE_30', 'HOUR', 'HOUR_2', 'HOUR_3',
+                             'HOUR_4', 'DAY', 'WEEK', 'MONTH']
+
+        if resolution not in valid_resolutions:
+            if self.debug_level:
+                msg = 'Resolution of {} not valid. '.format(resolution)
+                msg += 'Changed to default of HOUR'
+                print(msg)
+            resolution = 'HOUR'
+        if not from_date:
+            from_date = (dt.datetime.now() - dt.timedelta(days=1)
+                         ).strftime(self.dt_format)
+        if not to_date:
+            to_date = dt.datetime.now().strftime(self.dt_format)
+
+        url = self._set_url('/'.join(['/prices', 'epic', resolution,
+                                      from_date, to_date]))
+        headers = self._headers.copy()
+        headers['VERSION'] = '2'
+        pages = self._get(url, request_headers=headers)
+
+        return pages
+
     def positions(self):
         url = self._set_url('/positions')
         headers = self._headers.copy()
@@ -166,10 +195,10 @@ class APIHandler():
         url = self._set_url('/history/activity')
 
         if not from_date:
-            from_date = (datetime.datetime.now() - datetime.timedelta(days=7)
-                         ).strftime('%Y-%m-%d')
+            from_date = (dt.datetime.now() - dt.timedelta(days=7)
+                         ).strftime(self.date_format)
         if not to_date:
-            to_date = datetime.datetime.now().strftime('%Y-%m-%d')
+            to_date = dt.datetime.now().strftime(self.date_format)
 
         url = self._add_param(url, 'from', from_date)
         url = self._add_param(url, 'to', to_date)
