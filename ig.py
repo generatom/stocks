@@ -17,7 +17,6 @@ class APIHandler():
         self._default_headers = self._set_default_headers()
         self._login_response = self.login(password)
         del password
-        self._headers = self._set_headers()
         self.date_format = '%Y-%m-%d'
         self.time_format = '%H:%M:%S'
         self.dt_format = self.date_format + 'T' + self.time_format
@@ -38,15 +37,18 @@ class APIHandler():
         url = self._set_url('/session')
         response = requests.post(url, headers=headers,
                                  data=json.dumps(data))
+
         while response.status_code != 200:
             if self.debug_level:
                 print(response.status_code, response.reason)
             response = requests.post(url, headers=headers,
                                      data=json.dumps(data))
+
         self._login_data = response.json()
         self._tokens = self._login_data.get('oauthToken')
         self._access_token = self._tokens.get('access_token')
         self._auth_headers = self._set_auth_header()
+        self._headers = self._set_headers()
         return response
 
     def _set_url(self, endpoint):
@@ -142,7 +144,16 @@ class APIHandler():
         headers['VERSION'] = '2'
         pages = self._get(url, request_headers=headers)
 
-        return pages
+        if self.debug_level:
+            print(pages)
+
+        if pages[0].get('code'):
+            return pages[0]
+
+        prices = pd.DataFrame()
+        prices = [prices.append(page['prices']) for page in pages]
+
+        return prices
 
     def positions(self):
         url = self._set_url('/positions')
