@@ -5,6 +5,7 @@ import datetime as dt
 import numpy as np
 import pandas as pd
 import os.path as op
+import urllib.parse
 
 
 class APIHandler():
@@ -20,6 +21,12 @@ class APIHandler():
         self.date_format = '%Y-%m-%d'
         self.time_format = '%H:%M:%S'
         self.dt_format = self.date_format + 'T' + self.time_format
+
+    def __str__(self):
+        msg = 'APIHandler('
+        msg += str(self._login_response.status_code) + ', '
+        msg += self._access_token + ')'
+        return msg
 
     def login(self, password):
         data = {
@@ -40,9 +47,11 @@ class APIHandler():
         self._tokens = self._login_data.get('oauthToken')
         self._access_token = self._tokens.get('access_token')
         self._auth_headers = self._set_auth_header()
+        return response
 
     def _set_url(self, endpoint):
-        return self._api_url + endpoint
+        url = self._api_url + urllib.parse.quote(endpoint)
+        return url
 
     def _set_default_headers(self):
         headers = {'X-IG-API-KEY': self._api_key,
@@ -80,7 +89,10 @@ class APIHandler():
                 print('response: ' + response_page.text + '\n')
 
             if response_page.status_code != 200 and self.debug_level == 0:
-                return {'error': response_page.text}
+                msg = {'error': response_page.text,
+                       'code': response_page.status_code}
+                print(msg)
+                return [msg]
 
             response_data = response_page.json()
             responses.append(response_data)
@@ -123,8 +135,9 @@ class APIHandler():
         if not to_date:
             to_date = dt.datetime.now().strftime(self.dt_format)
 
-        url = self._set_url('/'.join(['/prices', 'epic', resolution,
+        url = self._set_url('/'.join(['/prices', epic, resolution,
                                       from_date, to_date]))
+        print(url)
         headers = self._headers.copy()
         headers['VERSION'] = '2'
         pages = self._get(url, request_headers=headers)
@@ -216,7 +229,10 @@ class APIHandler():
         url = self._set_url('/marketnavigation')
         if node is not None:
             url += '/' + str(node)
-        df = pd.DataFrame(self._get(url)[0])
+
+        response = self._get(url)
+        # print(response)
+        df = pd.DataFrame(response[0])
         df = pd.concat([pd.DataFrame(list(df[col].values)) for col in
                         df.columns], axis=1).dropna(axis='columns')
         return df
@@ -258,7 +274,7 @@ def get_api(api_type='demo', base_dir=None):
 
     api = {'api_key': get_pass(op.join(base_dir, api_type + '_api_key')),
            'user_name': get_pass(op.join(base_dir, api_type + '_api_usr')),
-           'passw': get_pass(op.join(base_dir, api_type + '_api_pass'))
+           'password': get_pass(op.join(base_dir, api_type + '_api_pass'))
            }
 
     if api_type == 'demo':
@@ -274,7 +290,7 @@ if __name__ == '__main__':
     api_deets = get_api(args.account)
 
     api = APIHandler(api_deets['url'], api_deets['api_key'],
-                     api_deets['user_name'], api_deets['passw'],
+                     api_deets['user_name'], api_deets['password'],
                      verbosity=args.verbosity)
     # api.print_market_nodes(api.market_details(361365))
     # pprint(api.market_details('IX.D.SUNFUN.DAILY.IP'))
