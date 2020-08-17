@@ -151,7 +151,8 @@ class APIHandler():
             return pages[0]
 
         prices = pd.DataFrame()
-        prices = [prices.append(page['prices']) for page in pages]
+        for page in pages:
+            prices = prices.append(page['prices'])
 
         return prices
 
