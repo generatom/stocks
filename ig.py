@@ -147,12 +147,29 @@ class APIHandler():
         if self.debug_level:
             print(pages)
 
+        # handle API errors
         if pages[0].get('code'):
             return pages[0]
 
+        # organise all results into a dataframe
         prices = pd.DataFrame()
         for page in pages:
             prices = prices.append(page['prices'])
+
+        # expand price columns
+        price_columns = [column for column in prices.columns if
+                         'Price' in column]
+
+        for column in price_columns:
+            new_columns = prices[column].apply(pd.Series)
+            new_columns.columns = [column.replace('Price', '') +
+                                   '_' + c for c in new_columns.columns]
+            prices = prices.join(new_columns).drop(columns=column, axis=1)
+
+        prices = (prices.rename(columns={'snapshotTime': 'time',
+                                'lastTradedVolume': 'volume'})
+                  .dropna(axis=1))
+        prices.time = pd.to_datetime(prices.time)
 
         return prices
 
