@@ -145,6 +145,9 @@ class APIHandler():
         url = self._set_url('/'.join(['/prices', epic, resolution,
                                       from_date, to_date]))
         if self.debug_level:
+            print(f'epic: {epic}')
+            print(f'from: {from_date}')
+            print(f'to: {to_date}')
             print(url)
 
         headers = self._headers.copy()
