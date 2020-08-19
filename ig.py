@@ -19,7 +19,7 @@ class APIHandler():
         del password
         self.date_format = '%Y-%m-%d'
         self.time_format = '%H:%M:%S'
-        self.dt_format = self.date_format + 'T' + self.time_format
+        self.dt_format = self.date_format + ' ' + self.time_format
 
     def __str__(self):
         msg = 'APIHandler('
@@ -119,7 +119,8 @@ class APIHandler():
     def transactions(self):
         pass
 
-    def prices(self, epic, resolution='HOUR', from_date=None, to_date=None):
+    def prices(self, epic, resolution='HOUR', from_date=None, to_date=None,
+               show_remaining_requests=False):
         valid_resolutions = ['SECOND', 'MINUTE', 'MINUTE_2', 'MINUTE_3',
                              'MINUTE_5', 'MINUTE_10', 'MINUTE_15',
                              'MINUTE_30', 'HOUR', 'HOUR_2', 'HOUR_3',
@@ -134,12 +135,18 @@ class APIHandler():
         if not from_date:
             from_date = (dt.datetime.now() - dt.timedelta(days=1)
                          ).strftime(self.dt_format)
+        else:
+            from_date = pd.to_datetime(from_date).strftime(self.dt_format)
         if not to_date:
             to_date = dt.datetime.now().strftime(self.dt_format)
+        else:
+            to_date = pd.to_datetime(to_date).strftime(self.dt_format)
 
         url = self._set_url('/'.join(['/prices', epic, resolution,
                                       from_date, to_date]))
-        print(url)
+        if self.debug_level:
+            print(url)
+
         headers = self._headers.copy()
         headers['VERSION'] = '2'
         pages = self._get(url, request_headers=headers)
@@ -150,6 +157,15 @@ class APIHandler():
         # handle API errors
         if pages[0].get('code'):
             return pages[0]
+
+        # print remaining requests
+        if show_remaining_requests:
+            print('Allowance Details')
+            for key, val in pages[-1]['allowance'].items():
+                if key == 'allowanceExpiry':
+                    val = str(dt.timedelta(seconds=val))
+
+                print('{}: {}'.format(key, val))
 
         # organise all results into a dataframe
         prices = pd.DataFrame()
