@@ -203,7 +203,7 @@ class APIHandler():
         df_pos = pd.DataFrame()
 
         for page in pages:
-            for frame in page['positions']:
+            for frame in page.get('positions'):
                 df = pd.DataFrame.from_dict(frame).T
                 df = df.loc['position'].combine_first(df.loc['market'])
                 df = df.to_frame().T.reset_index(drop=True)
